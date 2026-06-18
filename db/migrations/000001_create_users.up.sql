@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS users (
-    id   SERIAL PRIMARY KEY,
-    name TEXT   NOT NULL,
-    dob  DATE   NOT NULL
+    id   INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    dob  DATE         NOT NULL
 );

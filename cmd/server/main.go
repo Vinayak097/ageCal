@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/user/dob-api/config"
 	db "github.com/user/dob-api/db/sqlc"
 	"github.com/user/dob-api/internal/handler"
@@ -31,18 +32,18 @@ func main() {
 		logger.Log.Fatal("failed to load config", zap.Error(err))
 	}
 
-	pool, err := pgxpool.New(context.Background(), cfg.DSN())
+	sqlDB, err := sql.Open("mysql", cfg.DSN())
 	if err != nil {
-		logger.Log.Fatal("failed to connect to database", zap.Error(err))
+		logger.Log.Fatal("failed to open database", zap.Error(err))
 	}
-	defer pool.Close()
+	defer sqlDB.Close()
 
-	if err := pool.Ping(context.Background()); err != nil {
+	if err := sqlDB.PingContext(context.Background()); err != nil {
 		logger.Log.Fatal("database ping failed", zap.Error(err))
 	}
 	logger.Log.Info("database connected")
 
-	queries := db.New(pool)
+	queries := db.New(sqlDB)
 	userRepo := repository.NewUserRepository(queries)
 	userSvc := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userSvc, logger.Log)

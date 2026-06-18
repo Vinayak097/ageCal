@@ -21,19 +21,21 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBPort:     getEnv("DB_PORT", "5432"),
-		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: getEnv("DB_PASSWORD", "postgres"),
+		DBPort:     getEnv("DB_PORT", "3306"),
+		DBUser:     getEnv("DB_USER", "root"),
+		DBPassword: getEnv("DB_PASSWORD", ""),
 		DBName:     getEnv("DB_NAME", "dobapi"),
-		AppPort:    getEnv("APP_PORT", "3000"),
+		AppPort:    getEnv("PORT", "3000"),
 	}
 	return cfg, nil
 }
 
+// DSN returns a MySQL DSN. parseTime=true is required so DATE columns
+// are automatically scanned into time.Time.
 func (c *Config) DSN() string {
 	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName,
+		"%s:%s@tcp(%s:%s)/%s?parseTime=true",
+		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName,
 	)
 }
 

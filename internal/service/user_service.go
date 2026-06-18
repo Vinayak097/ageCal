@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/user/dob-api/db/sqlc"
 	"github.com/user/dob-api/internal/models"
 	"github.com/user/dob-api/internal/repository"
@@ -36,7 +35,7 @@ func (s *userService) CreateUser(ctx context.Context, req models.CreateUserReque
 
 	user, err := s.repo.Create(ctx, db.CreateUserParams{
 		Name: req.Name,
-		Dob:  timeToPgDate(dobTime),
+		Dob:  dobTime,
 	})
 	if err != nil {
 		return nil, err
@@ -62,7 +61,7 @@ func (s *userService) UpdateUser(ctx context.Context, id int32, req models.Updat
 	user, err := s.repo.Update(ctx, db.UpdateUserParams{
 		ID:   id,
 		Name: req.Name,
-		Dob:  timeToPgDate(dobTime),
+		Dob:  dobTime,
 	})
 	if err != nil {
 		return nil, err
@@ -113,8 +112,8 @@ func (s *userService) ListUsers(ctx context.Context, page, limit int32) (*models
 	}, nil
 }
 
-// CalculateAge returns the age in years for the given date of birth, relative to now.
-// Exported so it can be unit-tested independently.
+// CalculateAge returns age in years for dob relative to now.
+// Exported for unit testing.
 func CalculateAge(dob time.Time, now time.Time) int {
 	years := now.Year() - dob.Year()
 	if now.Month() < dob.Month() || (now.Month() == dob.Month() && now.Day() < dob.Day()) {
@@ -123,18 +122,11 @@ func CalculateAge(dob time.Time, now time.Time) int {
 	return years
 }
 
-func timeToPgDate(t time.Time) pgtype.Date {
-	return pgtype.Date{
-		Time:  t,
-		Valid: true,
-	}
-}
-
 func toUserResponse(u db.User) *models.UserResponse {
 	return &models.UserResponse{
 		ID:   u.ID,
 		Name: u.Name,
-		DOB:  u.Dob.Time.Format(dobLayout),
+		DOB:  u.Dob.Format(dobLayout),
 	}
 }
 
@@ -142,7 +134,7 @@ func toUserWithAge(u db.User) *models.UserWithAgeResponse {
 	return &models.UserWithAgeResponse{
 		ID:   u.ID,
 		Name: u.Name,
-		DOB:  u.Dob.Time.Format(dobLayout),
-		Age:  CalculateAge(u.Dob.Time, time.Now()),
+		DOB:  u.Dob.Format(dobLayout),
+		Age:  CalculateAge(u.Dob, time.Now()),
 	}
 }

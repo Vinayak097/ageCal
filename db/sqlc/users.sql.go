@@ -7,77 +7,71 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
+	"database/sql"
+	"time"
 )
 
-const createUser = `-- name: CreateUser :one
-INSERT INTO users (name, dob)
-VALUES ($1, $2)
-RETURNING id, name, dob
-`
+const createUser = `INSERT INTO users (name, dob) VALUES (?, ?)`
 
 type CreateUserParams struct {
 	Name string
-	Dob  pgtype.Date
+	Dob  time.Time
 }
 
+// CreateUser inserts a row and returns the full User by fetching it via LastInsertId.
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Name, arg.Dob)
-	var i User
-	err := row.Scan(&i.ID, &i.Name, &i.Dob)
-	return i, err
+	result, err := q.db.ExecContext(ctx, createUser, arg.Name, arg.Dob)
+	if err != nil {
+		return User{}, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return User{}, err
+	}
+	return q.GetUserByID(ctx, int32(id))
 }
 
-const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, dob
-FROM users
-WHERE id = $1
-`
+const getUserByID = `SELECT id, name, dob FROM users WHERE id = ?`
 
 func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByID, id)
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
 	var i User
 	err := row.Scan(&i.ID, &i.Name, &i.Dob)
 	return i, err
 }
 
-const updateUser = `-- name: UpdateUser :one
-UPDATE users
-SET name = $1, dob = $2
-WHERE id = $3
-RETURNING id, name, dob
-`
+const updateUser = `UPDATE users SET name = ?, dob = ? WHERE id = ?`
 
 type UpdateUserParams struct {
 	Name string
-	Dob  pgtype.Date
+	Dob  time.Time
 	ID   int32
 }
 
+// UpdateUser updates a row and returns it. Returns sql.ErrNoRows when id is not found.
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUser, arg.Name, arg.Dob, arg.ID)
-	var i User
-	err := row.Scan(&i.ID, &i.Name, &i.Dob)
-	return i, err
+	result, err := q.db.ExecContext(ctx, updateUser, arg.Name, arg.Dob, arg.ID)
+	if err != nil {
+		return User{}, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return User{}, err
+	}
+	if affected == 0 {
+		return User{}, sql.ErrNoRows
+	}
+	return q.GetUserByID(ctx, arg.ID)
 }
 
-const deleteUser = `-- name: DeleteUser :exec
-DELETE FROM users
-WHERE id = $1
-`
+const deleteUser = `DELETE FROM users WHERE id = ?`
 
 func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, deleteUser, id)
+	_, err := q.db.ExecContext(ctx, deleteUser, id)
 	return err
 }
 
-const listUsers = `-- name: ListUsers :many
-SELECT id, name, dob
-FROM users
-ORDER BY id
-LIMIT $1 OFFSET $2
-`
+const listUsers = `SELECT id, name, dob FROM users ORDER BY id LIMIT ? OFFSET ?`
 
 type ListUsersParams struct {
 	Limit  int32
@@ -85,7 +79,7 @@ type ListUsersParams struct {
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
-	rows, err := q.db.Query(ctx, listUsers, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listUsers, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -98,18 +92,13 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 		}
 		items = append(items, i)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+	return items, rows.Err()
 }
 
-const countUsers = `-- name: CountUsers :one
-SELECT COUNT(*) FROM users
-`
+const countUsers = `SELECT COUNT(*) FROM users`
 
 func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countUsers)
+	row := q.db.QueryRowContext(ctx, countUsers)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

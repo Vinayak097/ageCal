@@ -2,9 +2,9 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
-	"github.com/jackc/pgx/v5"
 	db "github.com/user/dob-api/db/sqlc"
 )
 
@@ -34,7 +34,7 @@ func (r *userRepository) Create(ctx context.Context, params db.CreateUserParams)
 func (r *userRepository) GetByID(ctx context.Context, id int32) (db.User, error) {
 	user, err := r.q.GetUserByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return db.User{}, ErrNotFound
 		}
 		return db.User{}, err
@@ -45,7 +45,7 @@ func (r *userRepository) GetByID(ctx context.Context, id int32) (db.User, error)
 func (r *userRepository) Update(ctx context.Context, params db.UpdateUserParams) (db.User, error) {
 	user, err := r.q.UpdateUser(ctx, params)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return db.User{}, ErrNotFound
 		}
 		return db.User{}, err
