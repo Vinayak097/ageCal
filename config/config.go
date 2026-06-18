@@ -34,7 +34,7 @@ func Load() (*Config, error) {
 // are automatically scanned into time.Time.
 func (c *Config) DSN() string {
 	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s?parseTime=true",
+		"%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=skip-verify",
 		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName,
 	)
 }

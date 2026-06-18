@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/gofiber/fiber/v2"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gofiber/fiber/v2"
 	"github.com/user/dob-api/config"
 	db "github.com/user/dob-api/db/sqlc"
 	"github.com/user/dob-api/internal/handler"
@@ -32,6 +33,12 @@ func main() {
 		logger.Log.Fatal("failed to load config", zap.Error(err))
 	}
 
+	logger.Log.Info("connecting to database",
+		zap.String("host", cfg.DBHost),
+		zap.String("port", cfg.DBPort),
+		zap.String("user", cfg.DBUser),
+		zap.String("db", cfg.DBName),
+	)
 	sqlDB, err := sql.Open("mysql", cfg.DSN())
 	if err != nil {
 		logger.Log.Fatal("failed to open database", zap.Error(err))
@@ -52,7 +59,7 @@ func main() {
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 			var e *fiber.Error
-			if ok := fiber.As(err, &e); ok {
+			if ok := errors.As(err, &e); ok {
 				code = e.Code
 			}
 			return c.Status(code).JSON(fiber.Map{"error": err.Error()})
